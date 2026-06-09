@@ -1,0 +1,12 @@
+.DS_Store
+.env.local
+.env.*.local
+
+public/uploads/bukti-transfer/*
+!public/uploads/bukti-transfer/.gitignore
+
+*.log
+*.tmp
+tmp/
+vendor/
+node_modules/
