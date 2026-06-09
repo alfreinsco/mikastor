@@ -23,6 +23,7 @@ function render_header(string $title): void
     $salesPages = ['penjualan.php', 'penjualan_detail.php'];
     $onlineOrderPages = ['pesanan_online.php', 'pesanan_online_detail.php'];
     $customerOrderPages = ['pesanan_saya.php', 'pesanan_saya_detail.php'];
+    $reportPages = ['laporan.php'];
     ?>
     <!doctype html>
     <html lang="id">
@@ -72,6 +73,7 @@ function render_header(string $title): void
                     <a class="<?= $currentPage === 'kasir.php' ? 'active' : '' ?>" href="kasir.php">Kasir</a>
                     <a class="<?= in_array($currentPage, $salesPages, true) ? 'active' : '' ?>" href="penjualan.php">Penjualan</a>
                     <a class="<?= in_array($currentPage, $onlineOrderPages, true) ? 'active' : '' ?>" href="pesanan_online.php">Pesanan Online</a>
+                    <a class="<?= in_array($currentPage, $reportPages, true) ? 'active' : '' ?>" href="laporan.php">Laporan</a>
                 <?php endif; ?>
             </nav>
         <?php endif; ?>

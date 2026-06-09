@@ -493,6 +493,18 @@ button:hover,
     margin-top: 0;
 }
 
+.report-filters {
+    grid-template-columns: minmax(150px, 0.7fr) repeat(2, minmax(150px, 1fr)) auto;
+}
+
+.report-export-button {
+    margin-top: 0;
+}
+
+.report-grid {
+    align-items: start;
+}
+
 .filter-actions {
     align-items: center;
     display: flex;
@@ -1308,6 +1320,10 @@ tfoot th {
 
     .table-filters {
         grid-template-columns: 1fr;
+    }
+
+    .report-export-button {
+        width: 100%;
     }
 
     .filter-actions,
