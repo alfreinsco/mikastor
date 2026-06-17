@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/table.php';
 require_role(['pemilik', 'kasir']);
 
 $pdo = require __DIR__ . '/../config/database.php';
@@ -91,38 +92,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$dateFrom = trim((string) ($_GET['date_from'] ?? date('Y-m-01')));
-$dateTo = trim((string) ($_GET['date_to'] ?? date('Y-m-d')));
-$fromDate = DateTimeImmutable::createFromFormat('Y-m-d', $dateFrom);
-$toDate = DateTimeImmutable::createFromFormat('Y-m-d', $dateTo);
+$q = table_string('q');
+$categoryFilter = table_string('kategori');
+$dateFrom = table_string('date_from');
+$dateTo = table_string('date_to');
+$page = table_int('page');
+$perPage = table_page_size();
+$offset = ($page - 1) * $perPage;
+$where = [];
+$params = [];
 
-if ($fromDate === false || $fromDate->format('Y-m-d') !== $dateFrom) {
-    $dateFrom = date('Y-m-01');
+if ($q !== '') {
+    $where[] = '(kategori LIKE ? OR keterangan LIKE ? OR id_pengeluaran = ?)';
+    $params[] = '%' . $q . '%';
+    $params[] = '%' . $q . '%';
+    $params[] = ctype_digit($q) ? (int) $q : 0;
 }
 
-if ($toDate === false || $toDate->format('Y-m-d') !== $dateTo) {
-    $dateTo = date('Y-m-d');
+if ($categoryFilter !== '') {
+    $where[] = 'kategori = ?';
+    $params[] = $categoryFilter;
 }
 
-if ($dateFrom > $dateTo) {
-    [$dateFrom, $dateTo] = [$dateTo, $dateFrom];
+if ($dateFrom !== '') {
+    $fromDate = DateTimeImmutable::createFromFormat('Y-m-d', $dateFrom);
+
+    if ($fromDate !== false && $fromDate->format('Y-m-d') === $dateFrom) {
+        $where[] = 'tanggal_pengeluaran >= ?';
+        $params[] = $dateFrom;
+    } else {
+        $dateFrom = '';
+    }
 }
+
+if ($dateTo !== '') {
+    $toDate = DateTimeImmutable::createFromFormat('Y-m-d', $dateTo);
+
+    if ($toDate !== false && $toDate->format('Y-m-d') === $dateTo) {
+        $where[] = 'tanggal_pengeluaran <= ?';
+        $params[] = $dateTo;
+    } else {
+        $dateTo = '';
+    }
+}
+
+$whereSql = $where === [] ? '' : 'WHERE ' . implode(' AND ', $where);
+
+$categoryRows = $pdo
+    ->query('SELECT DISTINCT kategori FROM pengeluaran ORDER BY kategori ASC')
+    ->fetchAll();
+
+$countStmt = $pdo->prepare("SELECT COUNT(*) FROM pengeluaran {$whereSql}");
+$countStmt->execute($params);
+$totalRows = (int) $countStmt->fetchColumn();
 
 $stmt = $pdo->prepare(
-    'SELECT *
+    "SELECT *
      FROM pengeluaran
-     WHERE tanggal_pengeluaran BETWEEN ? AND ?
-     ORDER BY tanggal_pengeluaran DESC, id_pengeluaran DESC'
+     {$whereSql}
+     ORDER BY tanggal_pengeluaran DESC, id_pengeluaran DESC
+     LIMIT {$perPage} OFFSET {$offset}"
 );
-$stmt->execute([$dateFrom, $dateTo]);
+$stmt->execute($params);
 $rows = $stmt->fetchAll();
 
 $totalStmt = $pdo->prepare(
     'SELECT COALESCE(SUM(jumlah), 0) AS total_pengeluaran
      FROM pengeluaran
-     WHERE tanggal_pengeluaran BETWEEN ? AND ?'
+     ' . $whereSql
 );
-$totalStmt->execute([$dateFrom, $dateTo]);
+$totalStmt->execute($params);
 $totalPengeluaran = (int) ($totalStmt->fetch()['total_pengeluaran'] ?? 0);
 
 render_header('Pengeluaran');
@@ -198,21 +237,37 @@ render_flash();
     <div class="section-heading">
         <div>
             <h3>Daftar Pengeluaran</h3>
-            <p>Total rentang ini: <strong><?= e(rupiah($totalPengeluaran)) ?></strong></p>
+            <p>Total hasil filter: <strong><?= e(rupiah($totalPengeluaran)) ?></strong></p>
         </div>
+        <span class="pill"><?= e($totalRows) ?> data</span>
     </div>
 
-    <form class="table-filters" method="get">
-        <div class="filter-title">Filter tanggal pengeluaran</div>
-        <label for="date_from">Dari</label>
-        <input type="date" id="date_from" name="date_from" value="<?= e($dateFrom) ?>">
-        <label for="date_to">Sampai</label>
-        <input type="date" id="date_to" name="date_to" value="<?= e($dateTo) ?>">
-        <div class="filter-actions">
-            <button type="submit">Terapkan</button>
-            <a class="button secondary" href="pengeluaran.php">Reset</a>
+    <?php render_table_filters_open('pengeluaran.php', 'Filter Pengeluaran'); ?>
+        <div>
+            <label for="q">Cari Pengeluaran</label>
+            <input type="search" id="q" name="q" value="<?= e($q) ?>" placeholder="ID, kategori, atau keterangan">
         </div>
-    </form>
+        <div>
+            <label for="kategori_filter">Filter Kategori</label>
+            <select id="kategori_filter" name="kategori">
+                <option value="">Semua kategori</option>
+                <?php foreach ($categoryRows as $categoryRow): ?>
+                    <option value="<?= e($categoryRow['kategori']) ?>" <?= $categoryFilter === $categoryRow['kategori'] ? 'selected' : '' ?>>
+                        <?= e($categoryRow['kategori']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div>
+            <label for="date_from">Dari Tanggal</label>
+            <input type="date" id="date_from" name="date_from" value="<?= e($dateFrom) ?>">
+        </div>
+        <div>
+            <label for="date_to">Sampai Tanggal</label>
+            <input type="date" id="date_to" name="date_to" value="<?= e($dateTo) ?>">
+        </div>
+        <?php render_page_size_select($perPage); ?>
+    <?php render_table_filters_close(); ?>
 
     <div class="table-wrap">
         <table>
@@ -244,12 +299,14 @@ render_flash();
                 <?php endforeach; ?>
                 <?php if ($rows === []): ?>
                     <tr>
-                        <td colspan="5">Belum ada pengeluaran pada rentang ini.</td>
+                        <td colspan="5">Pengeluaran tidak ditemukan.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
+
+    <?php render_pagination($totalRows, $page, $perPage); ?>
 </section>
 
 <?php

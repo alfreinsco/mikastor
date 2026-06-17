@@ -36,6 +36,7 @@ Seeder berisi:
 - Akun awal `kasir/kasir123`
 - Pelanggan umum
 - Produk minyak kayu putih awal
+- Data laporan keuangan 2023-2025 dari file Excel `data dede.xlsx`
 
 ## Fresh Database
 
