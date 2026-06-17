@@ -21,6 +21,7 @@ function render_header(string $title): void
     $pageClass = 'page-' . preg_replace('/[^a-z0-9]+/', '-', strtolower(pathinfo($currentPage, PATHINFO_FILENAME)));
     $productPages = ['produk.php', 'produk_form.php'];
     $salesPages = ['penjualan.php', 'penjualan_detail.php'];
+    $expensePages = ['pengeluaran.php'];
     $onlineOrderPages = ['pesanan_online.php', 'pesanan_online_detail.php'];
     $customerOrderPages = ['pesanan_saya.php', 'pesanan_saya_detail.php'];
     $reportPages = ['laporan.php'];
@@ -72,6 +73,7 @@ function render_header(string $title): void
                     <?php endif; ?>
                     <a class="<?= $currentPage === 'kasir.php' ? 'active' : '' ?>" href="kasir.php">Kasir</a>
                     <a class="<?= in_array($currentPage, $salesPages, true) ? 'active' : '' ?>" href="penjualan.php">Penjualan</a>
+                    <a class="<?= in_array($currentPage, $expensePages, true) ? 'active' : '' ?>" href="pengeluaran.php">Pengeluaran</a>
                     <a class="<?= in_array($currentPage, $onlineOrderPages, true) ? 'active' : '' ?>" href="pesanan_online.php">Pesanan Online</a>
                     <a class="<?= in_array($currentPage, $reportPages, true) ? 'active' : '' ?>" href="laporan.php">Laporan</a>
                 <?php endif; ?>

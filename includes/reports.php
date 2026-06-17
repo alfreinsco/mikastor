@@ -57,28 +57,30 @@ function report_current_filters(): array
     ];
 }
 
-function report_period_sql(string $period): array
+function report_period_sql(string $period, string $alias = 'p', string $dateColumn = 'tanggal_transaksi'): array
 {
+    $dateExpression = $alias . '.' . $dateColumn;
+
     return match ($period) {
         'week' => [
-            'key' => 'YEARWEEK(p.tanggal_transaksi, 3)',
-            'label' => "CONCAT(YEARWEEK(MIN(p.tanggal_transaksi), 3) DIV 100, ' Minggu ', LPAD(YEARWEEK(MIN(p.tanggal_transaksi), 3) MOD 100, 2, '0'))",
-            'start' => 'DATE_SUB(DATE(MIN(p.tanggal_transaksi)), INTERVAL WEEKDAY(MIN(p.tanggal_transaksi)) DAY)',
+            'key' => "YEARWEEK({$dateExpression}, 3)",
+            'label' => "CONCAT(YEARWEEK(MIN({$dateExpression}), 3) DIV 100, ' Minggu ', LPAD(YEARWEEK(MIN({$dateExpression}), 3) MOD 100, 2, '0'))",
+            'start' => "DATE_SUB(DATE(MIN({$dateExpression})), INTERVAL WEEKDAY(MIN({$dateExpression})) DAY)",
         ],
         'month' => [
-            'key' => "DATE_FORMAT(p.tanggal_transaksi, '%Y-%m')",
-            'label' => "DATE_FORMAT(MIN(p.tanggal_transaksi), '%m/%Y')",
-            'start' => "DATE_FORMAT(MIN(p.tanggal_transaksi), '%Y-%m-01')",
+            'key' => "DATE_FORMAT({$dateExpression}, '%Y-%m')",
+            'label' => "DATE_FORMAT(MIN({$dateExpression}), '%m/%Y')",
+            'start' => "DATE_FORMAT(MIN({$dateExpression}), '%Y-%m-01')",
         ],
         'year' => [
-            'key' => 'YEAR(p.tanggal_transaksi)',
-            'label' => "DATE_FORMAT(MIN(p.tanggal_transaksi), '%Y')",
-            'start' => "DATE_FORMAT(MIN(p.tanggal_transaksi), '%Y-01-01')",
+            'key' => "YEAR({$dateExpression})",
+            'label' => "DATE_FORMAT(MIN({$dateExpression}), '%Y')",
+            'start' => "DATE_FORMAT(MIN({$dateExpression}), '%Y-01-01')",
         ],
         default => [
-            'key' => 'DATE(p.tanggal_transaksi)',
-            'label' => "DATE_FORMAT(MIN(p.tanggal_transaksi), '%d/%m/%Y')",
-            'start' => 'DATE(MIN(p.tanggal_transaksi))',
+            'key' => "DATE({$dateExpression})",
+            'label' => "DATE_FORMAT(MIN({$dateExpression}), '%d/%m/%Y')",
+            'start' => "DATE(MIN({$dateExpression}))",
         ],
     };
 }
@@ -90,6 +92,12 @@ function report_summary(PDO $pdo, array $filters): array
             COUNT(*) AS total_nota,
             COALESCE(SUM(sale_items.total_item), 0) AS total_item,
             COALESCE(SUM(p.total_harga), 0) AS total_pendapatan,
+            (SELECT COALESCE(SUM(jumlah), 0)
+             FROM pengeluaran
+             WHERE tanggal_pengeluaran BETWEEN ? AND ?) AS total_pengeluaran,
+            COALESCE(SUM(p.total_harga), 0) - (SELECT COALESCE(SUM(jumlah), 0)
+             FROM pengeluaran
+             WHERE tanggal_pengeluaran BETWEEN ? AND ?) AS laba_bersih,
             COALESCE(AVG(p.total_harga), 0) AS rata_rata_nota
          FROM penjualan p
          LEFT JOIN (
@@ -99,12 +107,21 @@ function report_summary(PDO $pdo, array $filters): array
          ) sale_items ON sale_items.id_penjualan = p.id_penjualan
          WHERE DATE(p.tanggal_transaksi) BETWEEN ? AND ?'
     );
-    $stmt->execute([$filters['date_from'], $filters['date_to']]);
+    $stmt->execute([
+        $filters['date_from'],
+        $filters['date_to'],
+        $filters['date_from'],
+        $filters['date_to'],
+        $filters['date_from'],
+        $filters['date_to'],
+    ]);
 
     return $stmt->fetch() ?: [
         'total_nota' => 0,
         'total_item' => 0,
         'total_pendapatan' => 0,
+        'total_pengeluaran' => 0,
+        'laba_bersih' => 0,
         'rata_rata_nota' => 0,
     ];
 }
@@ -112,6 +129,7 @@ function report_summary(PDO $pdo, array $filters): array
 function report_period_rows(PDO $pdo, array $filters): array
 {
     $periodSql = report_period_sql($filters['period']);
+    $expensePeriodSql = report_period_sql($filters['period'], 'e', 'tanggal_pengeluaran');
     $stmt = $pdo->prepare(
         "SELECT
             {$periodSql['key']} AS periode_key,
@@ -120,6 +138,8 @@ function report_period_rows(PDO $pdo, array $filters): array
             COUNT(*) AS total_nota,
             COALESCE(SUM(sale_items.total_item), 0) AS total_item,
             COALESCE(SUM(p.total_harga), 0) AS total_pendapatan,
+            COALESCE(MAX(expenses.total_pengeluaran), 0) AS total_pengeluaran,
+            COALESCE(SUM(p.total_harga), 0) - COALESCE(MAX(expenses.total_pengeluaran), 0) AS laba_bersih,
             COALESCE(AVG(p.total_harga), 0) AS rata_rata_nota
          FROM penjualan p
          LEFT JOIN (
@@ -127,11 +147,22 @@ function report_period_rows(PDO $pdo, array $filters): array
             FROM detail_penjualan
             GROUP BY id_penjualan
          ) sale_items ON sale_items.id_penjualan = p.id_penjualan
+         LEFT JOIN (
+            SELECT {$expensePeriodSql['key']} AS periode_key, COALESCE(SUM(e.jumlah), 0) AS total_pengeluaran
+            FROM pengeluaran e
+            WHERE e.tanggal_pengeluaran BETWEEN ? AND ?
+            GROUP BY {$expensePeriodSql['key']}
+         ) expenses ON expenses.periode_key = {$periodSql['key']}
          WHERE DATE(p.tanggal_transaksi) BETWEEN ? AND ?
-         GROUP BY periode_key
+         GROUP BY {$periodSql['key']}
          ORDER BY tanggal_mulai ASC"
     );
-    $stmt->execute([$filters['date_from'], $filters['date_to']]);
+    $stmt->execute([
+        $filters['date_from'],
+        $filters['date_to'],
+        $filters['date_from'],
+        $filters['date_to'],
+    ]);
 
     return $stmt->fetchAll();
 }

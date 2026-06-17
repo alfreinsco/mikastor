@@ -159,6 +159,17 @@ CREATE TABLE IF NOT EXISTS detail_pesanan_online (
     CONSTRAINT chk_detail_pesanan_subtotal CHECK (subtotal >= 0)
 );
 
+CREATE TABLE IF NOT EXISTS pengeluaran (
+    id_pengeluaran INT AUTO_INCREMENT PRIMARY KEY,
+    tanggal_pengeluaran DATE NOT NULL,
+    kategori VARCHAR(100) NOT NULL,
+    keterangan TEXT NULL,
+    jumlah INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT chk_pengeluaran_jumlah CHECK (jumlah > 0)
+);
+
 INSERT INTO users (nama, username, password, role)
 VALUES
     ('Pemilik Toko', 'admin', '$2y$12$ZgHEvOBUxx1DE/VtZZbkwexD02aCe/QVmq7ZtmbCIix1lNEZ.IDGa', 'pemilik'),

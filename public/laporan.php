@@ -55,6 +55,14 @@ if (($_GET['export'] ?? '') === 'excel') {
                 <td><?= e((int) $summary['total_pendapatan']) ?></td>
             </tr>
             <tr>
+                <th>Total Pengeluaran</th>
+                <td><?= e((int) $summary['total_pengeluaran']) ?></td>
+            </tr>
+            <tr>
+                <th>Laba Bersih</th>
+                <td><?= e((int) $summary['laba_bersih']) ?></td>
+            </tr>
+            <tr>
                 <th>Rata-rata Nota</th>
                 <td><?= e((int) round((float) $summary['rata_rata_nota'])) ?></td>
             </tr>
@@ -68,6 +76,8 @@ if (($_GET['export'] ?? '') === 'excel') {
                     <th>Total Nota</th>
                     <th>Total Item</th>
                     <th>Total Pendapatan</th>
+                    <th>Total Pengeluaran</th>
+                    <th>Laba Bersih</th>
                     <th>Rata-rata Nota</th>
                 </tr>
             </thead>
@@ -78,6 +88,8 @@ if (($_GET['export'] ?? '') === 'excel') {
                         <td><?= e($row['total_nota']) ?></td>
                         <td><?= e($row['total_item']) ?></td>
                         <td><?= e((int) $row['total_pendapatan']) ?></td>
+                        <td><?= e((int) $row['total_pengeluaran']) ?></td>
+                        <td><?= e((int) $row['laba_bersih']) ?></td>
                         <td><?= e((int) round((float) $row['rata_rata_nota'])) ?></td>
                     </tr>
                 <?php endforeach; ?>
@@ -111,7 +123,7 @@ if (($_GET['export'] ?? '') === 'excel') {
     exit;
 }
 
-render_header('Laporan Penjualan');
+render_header('Laporan Keuangan');
 render_flash();
 ?>
 
@@ -166,6 +178,16 @@ render_flash();
         <small>Nilai penjualan bersih</small>
     </div>
     <div class="card stat-card">
+        <span>Total Pengeluaran</span>
+        <strong><?= e(rupiah((int) $summary['total_pengeluaran'])) ?></strong>
+        <small>Biaya pada rentang aktif</small>
+    </div>
+    <div class="card stat-card">
+        <span>Laba Bersih</span>
+        <strong><?= e(rupiah((int) $summary['laba_bersih'])) ?></strong>
+        <small>Pendapatan dikurangi pengeluaran</small>
+    </div>
+    <div class="card stat-card">
         <span>Rata-rata Nota</span>
         <strong><?= e(rupiah((int) round((float) $summary['rata_rata_nota']))) ?></strong>
         <small>Rata-rata nilai transaksi</small>
@@ -190,6 +212,8 @@ render_flash();
                         <th>Nota</th>
                         <th>Item</th>
                         <th>Pendapatan</th>
+                        <th>Pengeluaran</th>
+                        <th>Laba Bersih</th>
                         <th>Rata-rata</th>
                     </tr>
                 </thead>
@@ -200,12 +224,14 @@ render_flash();
                             <td><?= e($row['total_nota']) ?></td>
                             <td><?= e($row['total_item']) ?></td>
                             <td><?= e(rupiah((int) $row['total_pendapatan'])) ?></td>
+                            <td><?= e(rupiah((int) $row['total_pengeluaran'])) ?></td>
+                            <td><?= e(rupiah((int) $row['laba_bersih'])) ?></td>
                             <td><?= e(rupiah((int) round((float) $row['rata_rata_nota']))) ?></td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if ($periodRows === []): ?>
                         <tr>
-                            <td colspan="5">Belum ada penjualan pada rentang ini.</td>
+                            <td colspan="7">Belum ada penjualan pada rentang ini.</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
